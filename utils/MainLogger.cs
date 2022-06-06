@@ -11,7 +11,7 @@ public class MainLogger : SimpleLogger {
 
     private readonly LogSendQueue logSendQueue;
     private readonly FileStream mainLogFile;
-    private bool Shutdown { get; set; } = false;
+    public bool Shutdown { get; set; } = false;
 
     public new void Emergency(string message) {
         Send(message, "EMERGENCY", ConsoleColor.Red);
