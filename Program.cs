@@ -18,11 +18,29 @@ public class Program {
             Environment.Exit(1);
         }
         
-        //TODO: Timezone setting field, preferably system default timezone.
+        // TODO: Timezone setting field, preferably system default timezone.
         var logger = new MainLogger("server.log", "Server", TimeZoneInfo.Local, false);
         GlobalLogger.Logger = logger;
         
+        // Check if the properties file exists.
+        if(!File.Exists("server.properties")) {
+            // TODO: Run setup wizard.
+        }
+
+        var server = new Server(logger);
+
+        while (!server.Shutdown) { 
+            // Wait for server to be shutdown.
+        }
+
+        // TODO: Stop other threads when we start using threads.
+
+        logger.Shutdown = true;
+        FileSystem.ReleaseLockFile("server.lock");
         
+        Info("Press any key to exit...");
+        Console.ReadKey();
+        Environment.Exit(1);
     }
 
     private static void CriticalError(string message) {
