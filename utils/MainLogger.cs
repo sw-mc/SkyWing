@@ -109,11 +109,15 @@ public class MainLogger : SimpleLogger {
     private void MainLogThread(object? obj) {
         while (!Shutdown) {
             var entry = logSendQueue.Get();
-            if (entry == null)
+            if (entry == null) {
+                Thread.Sleep(100);
                 continue;
-            
+            }
+
             mainLogFile.Write(Encoding.UTF8.GetBytes(entry));
             mainLogFile.Flush();
+            
+            Thread.Sleep(100);
         }
     }
 
