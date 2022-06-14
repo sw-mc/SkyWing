@@ -27,11 +27,9 @@ public class Program {
             // TODO: Run setup wizard.
         }
 
-        var server = new Server(logger);
-
-        while (!server.Shutdown) { 
-            // Wait for server to be shutdown.
-        }
+        do {
+            new Server(logger);
+        } while (false);
 
         // TODO: Stop other threads when we start using threads.
 
