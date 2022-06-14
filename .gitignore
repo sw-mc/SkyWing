@@ -1,3 +1,6 @@
 ﻿/.idea/
 /bin/
 /obj/
+
+server.lock
+server.log
