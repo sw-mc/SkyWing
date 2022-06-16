@@ -18,9 +18,21 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="SkyWing.Binary" Version="1.0.0-dev" />
-        <PackageReference Include="SkyWing.RakLib" Version="1.0.0-dev" />
+        <PackageReference Include="SkyWing.Binary" Version="1.0.1-dev" />
+        <!-- <PackageReference Include="SkyWing.RakLib" Version="1.1.0-dev" /> -->
+        <!-- <PackageReference Include="SkyWing.RakLibIpc" Version="0.1.0" /> -->
         <PackageReference Include="SkyWing.Logger" Version="1.0.0" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="YamlDotNet" Version="11.2.1" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <ProjectReference Include="..\BedrockProtocol\BedrockProtocol.csproj" />
+        <ProjectReference Include="..\RakLib\RakLib.csproj" />
+        <ProjectReference Include="..\RakLibIpc\RakLibIpc.csproj" />
     </ItemGroup>
 
 </Project>

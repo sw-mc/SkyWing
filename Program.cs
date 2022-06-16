@@ -7,7 +7,6 @@ using SkyWing.SkyWing.Utils;
 public class Program {
 
     private static void Main(string[] args) {
-
         var pid = FileSystem.CreateLockFile("server.lock");
         if (pid != null) {
             CriticalError("Another " + VersionInfo.NAME + " instance (PID)" + pid + " is already using this folder.");
@@ -21,14 +20,19 @@ public class Program {
         // TODO: Timezone setting field, preferably system default timezone.
         var logger = new MainLogger("server.log", "Server", TimeZoneInfo.Local, false);
         GlobalLogger.Logger = logger;
-        
-        // Check if the properties file exists.
-        if(!File.Exists("server.properties")) {
-            // TODO: Run setup wizard.
-        }
 
         do {
-            new Server(logger);
+
+            // Check if the properties file exists.
+            if (!File.Exists("server.properties") && !args.ToList().Contains("no-wizard")) {
+                var wizard = new SetupWizard(CoreConstants.LocalDataPath);
+                if (!wizard.Run())
+                    break;
+            }
+
+            //new Server(logger);
+            Console.WriteLine("Server starts....    ....and stops");
+            
         } while (false);
 
         // TODO: Stop other threads when we start using threads.

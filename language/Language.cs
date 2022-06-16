@@ -1,6 +1,6 @@
 ﻿using SkyWing.Utils;
 
-namespace SkyWing.SkyWing.language; 
+namespace SkyWing.SkyWing.Language; 
 
 public class Language {
     
@@ -11,7 +11,7 @@ public class Language {
         if (!Directory.Exists(path))
             throw new LanguageNotFoundException($"Language directory {path} does not exist or is not a directory");
         
-        var files = (from file in Directory.GetFiles(path) where file.Substring(-4).Equals(".ini") select Path.GetFileName(file)).ToList();
+        var files = (from file in Directory.GetFiles(path) where file[^4..].Equals(".ini") select Path.GetFileName(file)).ToList();
         var list = new Dictionary<string, string>();
 
         string code;
@@ -25,20 +25,24 @@ public class Language {
                 list.Add(code, data["language.name"]);
         }
 
+        if (list.Count <= 0)
+            throw new LanguageNotFoundException($"Language directory {path} does not contain any language files.");
+        
         return list;
     }
 
     public string Name => Get(LangName);
 
     private string LangName { get; set; }
-    private Dictionary<string, string> lang;
-    private Dictionary<string, string> fallback;
+    private readonly Dictionary<string, string> lang;
+    private readonly Dictionary<string, string> fallback;
 
     public Language(string language, string path, string fallbackLang = FALLBACK_LANGUAGE) {
         LangName = language.ToLower();
 
         lang = LoadLang(path, LangName);
-        fallback = LoadLang(path, fallbackLang);
+        
+        fallback = !LangName.Equals(fallbackLang) ? LoadLang(path, fallbackLang) : lang;
     }
 
     public static Dictionary<string, string> LoadLang(string path, string languageCode) {
@@ -47,8 +51,8 @@ public class Language {
             throw new LanguageNotFoundException($"Language {languageCode} not found.");
         
         var languageContent = new Dictionary<string, string>();
-        var languageFile = Config.ReadProperties(new StreamReader(File.OpenRead(file)).ReadToEnd());
-        foreach (var (key, value) in languageFile) {
+        var languageFile = new Config(file, ConfigTypes.Properties);
+        foreach (var (key, value) in languageFile.GetAll()) {
             languageContent.Add(key, (string) value!);
         }
         return languageContent;
