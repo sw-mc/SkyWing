@@ -7,6 +7,11 @@ namespace SkyWing.SkyWing;
 
 public sealed class Server {
 
+    public const string DEFAULT_SERVER_NAME = VersionInfo.NAME + " Server";
+    public const int DEFAULT_MAX_PLAYERS = 20;
+    public const int DEFAULT_PORT_IPV4 = 19132;
+    public const int DEFAULT_MAX_VIEW_DISTANCE = 16;
+
     public MainLogger Logger { get; }
 
     public bool Running { get; set; } = true;

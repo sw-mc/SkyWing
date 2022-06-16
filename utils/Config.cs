@@ -8,9 +8,7 @@ public class Config {
     private Dictionary<string, object?> config = new();
     private readonly Dictionary<string, object?> nestedCache = new();
 
-    private FileStream? file;
-    private StreamReader? reader;
-    private StreamWriter? writer;
+    private string? filePath;
 
     private ConfigTypes type = ConfigTypes.Detect;
 
@@ -23,28 +21,26 @@ public class Config {
         {"config", ConfigTypes.Cnf},
         {"json", ConfigTypes.Json},
         {"js", ConfigTypes.Json},
+        {"txt", ConfigTypes.Enum}
     };
 
     public Config(string file, ConfigTypes type, Dictionary<string, object?>? def = null) {
         Load(file, type, def ?? new Dictionary<string, object?>());
     }
 
-    private async void Load(string filePath, ConfigTypes configType, Dictionary<string, object?> def) {
+    private void Load(string path, ConfigTypes configType, Dictionary<string, object?> def) {
+        filePath = path;
         type = configType;
 
         if (type == ConfigTypes.Detect) {
             var extension = Path.GetExtension(filePath).ToLower();
-            if (formats.ContainsKey(extension))
+            if (formats.ContainsKey(extension)) {
                 type = formats[extension];
+            }
+            else {
+                throw new ArgumentException("Cannot detect config type of " + path);
+            }
         }
-        else {
-            throw new ArgumentException("Cannot detect config type of " + file);
-        }
-
-        file = File.Open(filePath, File.Exists(filePath) ? FileMode.Truncate : FileMode.Create, FileAccess.ReadWrite);
-        reader = new StreamReader(file);
-        writer = new StreamWriter(file);
-
 
         if (!File.Exists(filePath)) {
             config = def;
@@ -52,8 +48,8 @@ public class Config {
         }
         else {
             try {
-                var content = await reader.ReadToEndAsync();
-                switch (this.type) {
+                var content = File.ReadAllText(filePath);
+                switch (type) {
                     case ConfigTypes.Properties:
                         config = ReadProperties(content);
                         break;
@@ -61,8 +57,11 @@ public class Config {
                         var jsonReader = new JsonTextReader(new StringReader(content));
                         config = new Dictionary<string, object?>();
 
-                        await jsonReader.ReadAsync(); // Opens default JSON object (this does not have a property name)
+                        jsonReader.ReadAsync(); // Opens default JSON object (this does not have a property name)
                         CreateJsonObject(config, jsonReader);
+                        break;
+                    case ConfigTypes.Enum:
+                        config = ReadList(content);
                         break;
                     default:
                         throw new ArgumentException("Invalid config type specified.", nameof(type));
@@ -70,9 +69,9 @@ public class Config {
                 if (config == null || config.GetType() != typeof(Dictionary<string, object?>))
                     throw new ConfigLoadException("Failed to load config. Possible corruption or syntax error.");
 
-                if (await FillDefaults(def, config) > 0) {
-                    Save();
-                }
+                //if  FillDefaults(def, config) > 0) {
+                 //   Save();
+                //}
             }
             catch (Exception e) {
                 throw new ConfigLoadException("Could not load config: " + e.Message);
@@ -188,108 +187,84 @@ public class Config {
         return config.Values.ToList();
     }
 
-    public async void SetDefaults(Dictionary<string, object?> def) {
-        await FillDefaults(def, config);
+    public void SetDefaults(Dictionary<string, object?> def) {
+        FillDefaults(def, config);
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
-    private async Task<int> FillDefaults(Dictionary<string, object?> def, Dictionary<string, object?> data) {
-        return await Task.Run(async () => {
-            var changed = 0;
-            foreach (var (key, value) in def) {
-                if (!data.ContainsKey(key) && value == null) {
-                    data[key] = value;
-                    ++changed;
-                }
-                else if (value == null) {
-
-                }
-                else if (value.GetType() == typeof(IDictionary)) {
-                    if (!data.ContainsKey(key) || data[key]!.GetType() != typeof(IDictionary))
-                        data[key] = new Dictionary<string, object?>();
-
-                    changed += await FillDefaults((Dictionary<string, object?>) value,
-                        (Dictionary<string, object?>) data[key]!);
-                }
-                else if (def.GetType() == typeof(IList)) {
-                    if (!data.ContainsKey(key) || data[key]!.GetType() != typeof(IList))
-                        data[key] = new List<object?>();
-
-                    changed += await FillDefaults((List<object?>) value, (List<object?>) data[key]!);
-
-                }
-                else if (!data.ContainsKey(key)) {
-                    data[key] = value;
-                    ++changed;
-                }
+    private int FillDefaults(Dictionary<string, object?> def, Dictionary<string, object?> data) {
+        var changed = 0;
+        foreach (var (key, value) in def) {
+            if (!data.ContainsKey(key) && value == null) {
+                data[key] = value;
+                ++changed;
             }
+            else if (value == null) {
 
-            return changed;
-        });
-    }
-
-    private async Task<int> FillDefaults(IReadOnlyList<object?> def, IList<object?> data) {
-        return await Task.Run(async () => {
-            var changed = 0;
-            for (var i = 0; i < def.Count; i++) {
-                if (def[i]!.GetType() == typeof(IDictionary)) {
-                    if (data.Count < i || data[i]!.GetType() != typeof(IDictionary))
-                        data[i] = new Dictionary<string, object?>();
-
-                    changed += await FillDefaults((Dictionary<string, object?>) def[i]!,
-                        (Dictionary<string, object?>) data[i]!);
-                }
-                else if (def[i]!.GetType() == typeof(IList)) {
-                    if (data.Count < i || data[i]!.GetType() != typeof(IList))
-                        data[i] = new List<object?>();
-
-                    changed += await FillDefaults((List<object?>) def[i]!, (List<object?>) data[i]!);
-                }
-                else if (data.Count < i) {
-                    data[i] = def[i];
-                }
             }
+            else if (value.GetType() == typeof(IDictionary)) {
+                if (!data.ContainsKey(key) || data[key]!.GetType() != typeof(IDictionary))
+                    data[key] = new Dictionary<string, object?>();
 
-            return changed;
-        });
-    }
+                changed += FillDefaults((Dictionary<string, object?>) value,
+                    (Dictionary<string, object?>) data[key]!);
+            }
+            else if (def.GetType() == typeof(IList)) {
+                if (!data.ContainsKey(key) || data[key]!.GetType() != typeof(IList))
+                    data[key] = new List<object?>();
 
-    public async void Save() {
-        switch (type) {
-            case ConfigTypes.Json:
-                await writer!.WriteAsync(JsonConvert.SerializeObject(config, Formatting.Indented));
-                break;
-            case ConfigTypes.Properties:
-                await writer!.WriteAsync(WriteProperties(config));
-                break;
+                changed += FillDefaults((List<object?>) value, (List<object?>) data[key]!);
+
+            }
+            else if (!data.ContainsKey(key)) {
+                data[key] = value;
+                ++changed;
+            }
         }
 
-        await writer!.FlushAsync();
+        return changed;
     }
 
-    private async void CreateJsonObject(Dictionary<string, object?> location, JsonTextReader jsonReader) {
+    private int FillDefaults(IReadOnlyList<object?> def, IList<object?> data) {
+        var changed = 0;
+        for (var i = 0; i < def.Count; i++) {
+            if (def[i]!.GetType() == typeof(IDictionary)) {
+                if (data.Count < i || data[i]!.GetType() != typeof(IDictionary))
+                    data[i] = new Dictionary<string, object?>();
+
+                changed += FillDefaults((Dictionary<string, object?>) def[i]!,
+                    (Dictionary<string, object?>) data[i]!);
+            }
+            else if (def[i]!.GetType() == typeof(IList)) {
+                if (data.Count < i || data[i]!.GetType() != typeof(IList))
+                    data[i] = new List<object?>();
+
+                changed += FillDefaults((List<object?>) def[i]!, (List<object?>) data[i]!);
+            }
+            else if (data.Count < i) {
+                data[i] = def[i];
+            }
+        }
+
+        return changed;
+    }
+
+    public void Save() {
+        switch (type) {
+            case ConfigTypes.Json:
+                File.WriteAllText(filePath!, JsonConvert.SerializeObject(config, Formatting.Indented));
+                break;
+            case ConfigTypes.Properties:
+                File.WriteAllText(filePath!, WriteProperties(config));
+                break;
+            case ConfigTypes.Enum:
+                File.WriteAllText(filePath!, WriteList(config));
+                break;
+        }
+    }
+
+    private void CreateJsonObject(Dictionary<string, object?> location, JsonTextReader jsonReader) {
         string? name = null;
-        while (await jsonReader.ReadAsync()) {
+        while (jsonReader.Read()) {
             switch (jsonReader.TokenType) {
                 case JsonToken.StartObject:
                     var collection = new Dictionary<string, object?>();
@@ -330,8 +305,8 @@ public class Config {
         }
     }
 
-    private async void CreateJsonArray(List<object?> location, JsonTextReader jsonReader) {
-        while (await jsonReader.ReadAsync()) {
+    private void CreateJsonArray(List<object?> location, JsonTextReader jsonReader) {
+        while (jsonReader.Read()) {
             switch (jsonReader.TokenType) {
                 case JsonToken.StartObject:
                     var collection = new Dictionary<string, object?>();
@@ -372,7 +347,9 @@ public class Config {
     public static Dictionary<string, object?> ReadProperties(string content) {
         var config = new Dictionary<string, object?>();
         foreach (var line in content.Split("\n")) {
-            if (string.IsNullOrEmpty(line) || line.StartsWith(";") || line.StartsWith("#") || line.StartsWith("'") || !line.Contains('='))
+            if (string.IsNullOrEmpty(line) || line.StartsWith(";") || line.StartsWith("#") ||
+                line.StartsWith("'") ||
+                !line.Contains('='))
                 continue;
 
             var equalIndex = line.IndexOf('=');
@@ -404,8 +381,19 @@ public class Config {
 
             config.Add(key, value);
         }
-        
+
         return config;
+
+    }
+
+    public static string WriteList(Dictionary<string, object?> config) {
+        return string.Join("\n", config.Keys.ToArray());
+    }
+
+    public static Dictionary<string, object?> ReadList(string content) {
+        var split = content.Replace("\r\n", "\n").Split("\n");
+        return split.ToDictionary<string, string, object?>(value => value, _ => true);
+        
     }
 }
 
@@ -420,6 +408,7 @@ public enum ConfigTypes {
     Detect = -1,
     Properties,Cnf = 0,
     Json = 1,
+    Enum = 2
     
 }
 
